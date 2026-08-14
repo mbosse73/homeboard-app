@@ -265,6 +265,11 @@ für den lokalen Start vorgehalten, kein Befund.
      nichts". Die Fehlermeldung nennt, wie viele Überschriften bzw. Textblöcke geprüft wurden,
      damit eine Layoutänderung schnell einzugrenzen ist.
 
+  4. **Der Spotify-Link ist ein Suchlink.** Die Kachel führt zu
+     `open.spotify.com/search/<Interpret Titel>`. Ein echter Albumlink bräuchte die Spotify-API
+     mit Client ID, Secret und Token-Erneuerung; der Suchlink kostet keine Anfrage und kann
+     deshalb als einzige Angabe am Album nie fehlschlagen.
+
   Die gemeinsamen HTML-Werkzeuge beider Scraper stehen jetzt in `lib/text.js`; `lib/kino.js`
   nutzt sie unverändert weiter.
 

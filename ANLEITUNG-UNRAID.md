@@ -135,6 +135,10 @@ Hinweis darüber. Der Scraper in `lib/musik.js` muss dann an das neue Markup ang
 Die Cover kommen aus der iTunes-Suche, nicht von tonspion. Erreicht der Server
 `itunes.apple.com` nicht, bleiben die Platzhalter stehen — die Liste selbst funktioniert weiter.
 
+**Tippen auf ein Album öffnet nichts**
+Die Kachel verlinkt auf `open.spotify.com`. Ohne installierte Spotify-App öffnet der Browser die
+Weboberfläche — dort ist eine Anmeldung nötig. Das ist keine Fehlfunktion des Homeboards.
+
 **Das Datum über den Alben ist nicht der heutige Freitag**
 Kein Fehler: angezeigt wird immer das Datum, das auf der tonspion-Seite über den Alben steht.
 Solange dort noch die Vorwoche steht, zeigt das Homeboard bewusst auch die Vorwoche.

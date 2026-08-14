@@ -7,6 +7,7 @@ const { erstelleAlbenliste, QUELLE, _intern } = require('../lib/musik');
 
 const {
   datumAusZeile,
+  spotifySucheUrl,
   artikelBereich,
   alsAlbum,
   abschnitte,
@@ -85,7 +86,8 @@ test('artikelBereich blendet Navigation und Fußzeile aus', () => {
 
 test('alsAlbum zerlegt "Interpret – Titel" und räumt Beiwerk weg', () => {
   assert.deepStrictEqual(alsAlbum({ text: 'Benny Blanco – Hermoso', href: null }), {
-    interpret: 'Benny Blanco', titel: 'Hermoso', info: null, url: null, coverUrl: null,
+    interpret: 'Benny Blanco', titel: 'Hermoso', info: null, url: null,
+    spotifyUrl: 'https://open.spotify.com/search/Benny%20Blanco%20Hermoso', coverUrl: null,
   });
 
   assert.strictEqual(alsAlbum({ text: '7. Jamie xx - In Waves', href: null }).interpret, 'Jamie xx');
@@ -106,6 +108,7 @@ test('alsAlbum behält Zeilen ohne Trenner als Ganzes', () => {
   const ohneTrenner = alsAlbum({ text: 'Dent May The Big One', href: null });
   assert.strictEqual(ohneTrenner.interpret, 'Dent May The Big One');
   assert.strictEqual(ohneTrenner.titel, null);
+  assert.strictEqual(ohneTrenner.spotifyUrl, 'https://open.spotify.com/search/Dent%20May%20The%20Big%20One');
 });
 
 test('alsAlbum verwirft, was kein Albumeintrag ist', () => {
@@ -175,6 +178,21 @@ test('erstelleAbschnitt scheitert laut, wenn das Layout nicht mehr passt', () =>
       + '</article></main></body></html>'),
     /keine Albumzeilen darin/
   );
+});
+
+test('spotifySucheUrl baut einen Suchlink ohne Zugangsdaten', () => {
+  assert.strictEqual(
+    spotifySucheUrl('Benny Blanco', 'Hermoso'),
+    'https://open.spotify.com/search/Benny%20Blanco%20Hermoso'
+  );
+  // Ohne Titel bleibt die ganze Zeile der Suchbegriff - kein "null" in der Adresse.
+  const ohneTitel = spotifySucheUrl('Dent May The Big One', null);
+  assert.ok(!ohneTitel.includes('null'));
+
+  // Sonderzeichen muessen kodiert werden, sonst bricht die Adresse.
+  const heikel = spotifySucheUrl('AC/DC & Co.', 'Rock #1');
+  assert.ok(!/[ &#]/.test(heikel.replace('https://open.spotify.com/search/', '')));
+  assert.strictEqual(new URL(heikel).protocol, 'https:');
 });
 
 // ---------- Cover ----------
@@ -255,6 +273,9 @@ test('erstelleAlbenliste setzt Datum, Quelle und Cover zusammen', async () => {
   // Nur der passende Interpret bekommt ein Cover, die übrigen bleiben ohne - aber vorhanden.
   const mitCover = daten.alben.filter((a) => a.coverUrl);
   assert.ok(mitCover.every((a) => a.coverUrl === 'https://is1.mzstatic.com/z/400x400bb.jpg'));
+
+  // Jedes Album bekommt einen Spotify-Suchlink - der haengt an keiner Fremdanfrage.
+  assert.ok(daten.alben.every((a) => a.spotifyUrl.startsWith('https://open.spotify.com/search/')));
 });
 
 test('erstelleAlbenliste meldet einen HTTP-Fehler der Quelle', async () => {

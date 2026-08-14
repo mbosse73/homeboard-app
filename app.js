@@ -371,14 +371,22 @@ function renderAlbum(album){
   // Bei manchen Zeilen der Quelle fehlt der Trenner zwischen Interpret und Titel; dann steht die
   // ganze Zeile im Feld interpret und die zweite Zeile entfällt.
   const albumtitel = album.titel ? `<span class="albumtitel">${escapeHtml(album.titel)}</span>` : '';
-  const inhalt = `<div class="cover">${bild}</div>
+
+  // Die ganze Kachel führt zu Spotify - auf dem Tablet ist das Cover das größte Ziel.
+  // Ohne Spotify-Adresse bleibt der Link der Quelle, und ohne beides ist es keine Kachel zum
+  // Antippen; das Abspielsymbol erscheint dann auch nicht.
+  const ziel = sichereUrl(album.spotifyUrl || album.url || '');
+  const abspielen = (ziel && album.spotifyUrl) ? '<span class="abspielen" aria-hidden="true">▶</span>' : '';
+  const inhalt = `<div class="cover">${bild}${abspielen}</div>
     <span class="interpret">${escapeHtml(album.interpret)}</span>
     ${albumtitel}${zusatz}`;
 
-  const url = album.url ? sichereUrl(album.url) : null;
-  return url
-    ? `<a class="album" href="${escapeHtml(url)}" target="_blank" rel="noopener">${inhalt}</a>`
-    : `<div class="album">${inhalt}</div>`;
+  if(!ziel) return `<div class="album">${inhalt}</div>`;
+  const beschriftung = album.spotifyUrl
+    ? 'Bei Spotify suchen: ' + album.interpret + (album.titel ? ' – ' + album.titel : '')
+    : 'Bei tonspion ansehen';
+  return `<a class="album" href="${escapeHtml(ziel)}" target="_blank" rel="noopener"
+    title="${escapeHtml(beschriftung)}" aria-label="${escapeHtml(beschriftung)}">${inhalt}</a>`;
 }
 
 async function ladeAlben(erzwingen, still){
@@ -420,8 +428,9 @@ async function ladeAlben(erzwingen, still){
     // hinterlassen - dann greift derselbe Platzhalter wie bei einem gar nicht gefundenen Cover.
     inhaltEl.querySelectorAll('.album .cover img').forEach(img => {
       img.addEventListener('error', () => {
-        const cover = img.closest('.cover');
-        if(cover) cover.innerHTML = coverPlatzhalter(img.dataset.initialen || '');
+        // Nur das Bild ersetzen, nicht den ganzen Cover-Bereich - sonst verschwindet das
+        // Abspielsymbol daneben gleich mit.
+        img.outerHTML = coverPlatzhalter(img.dataset.initialen || '');
       });
     });
 

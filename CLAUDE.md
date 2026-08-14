@@ -163,11 +163,16 @@ sie ein zweites Mal um.
       "info": "Domino",           // kurzer Klammerzusatz der Quelle (Label/Genre), sonst null
                                   // titel ist null, wenn die Zeile keinen Trenner hatte
       "url": "https://…",         // Link der Quelle, sonst null
+      "spotifyUrl": "https://open.spotify.com/search/…",  // Suchlink, immer gesetzt
       "coverUrl": "https://…" }   // iTunes-Cover, sonst null → Frontend zeigt Platzhalter
   ],
   "fehler": null                  // nur gesetzt, wenn ein alter Stand ausgeliefert wird
 }
 ```
+
+Die Albumkachel führt zu `spotifyUrl`. Das ist bewusst ein **Suchlink** und kein echter
+Albumlink: der bräuchte die Spotify-API mitsamt Zugangsdaten und Token-Erneuerung. Der Suchlink
+kostet keine Anfrage, kann deshalb nie fehlschlagen und ist immer gesetzt.
 
 Ein Album ohne Cover bleibt ein vollwertiger Eintrag — `coverUrl: null` ist ein Normalfall, kein
 Fehler. Das Feld `fehler` taucht nur auf, wenn der Abruf scheiterte und deshalb der letzte
@@ -219,6 +224,10 @@ Die Analyse in `ANALYSIS.md` hat elf Befunde ergeben, alle behoben. Diese Vorkeh
 - **Ein gescheiterter Wetter- oder Albenabruf leert die Kachel nicht**, sondern liefert den
   letzten brauchbaren Stand weiter; das Frontend zeigt über das Alter, wie frisch er ist, und
   bei den Alben zusätzlich über das Feld `fehler`, warum er es nicht ist.
+- **Der Spotify-Link bleibt ein Suchlink.** Er wird ohne Fremdanfrage gebildet und ist damit die
+  einzige Angabe am Album, die nicht ausfallen kann. Wer ihn auf echte Albumlinks umstellt, holt
+  sich Zugangsdaten, Token-Erneuerung und eine weitere Fehlerquelle ins Haus — dann bitte mit
+  Rückfall auf den Suchlink.
 - **Ein fehlendes Cover kostet nie den Albumeintrag.** Jede Cover-Suche ist einzeln abgesichert;
   schlägt sie fehl, bleibt `coverUrl: null` und das Frontend zeigt einen Platzhalter in gleicher
   Größe, damit das Raster nicht springt.
