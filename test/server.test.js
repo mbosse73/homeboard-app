@@ -167,14 +167,14 @@ test.after(() => {
   else if (fs.existsSync(ALBEN_DATEI)) fs.unlinkSync(ALBEN_DATEI);
 });
 
+// Aufbau wie auf der echten Seite: Monatsüberschrift, Datumszeilen im Format TT.MM.JJ, darunter
+// die Alben. Das Datum liegt bewusst in der Vergangenheit, damit der Abschnitt unabhängig vom
+// Testzeitpunkt als "bereits erschienen" gilt.
 const ALBEN_SEITE = `<html><body><main><article>
-  <h2>Neue Alben am 14.08.2026</h2>
-  <ul>
-    <li>Beth Gibbons &#8211; Lives Outgrown</li>
-    <li>Jamie xx &#8211; In Waves</li>
-  </ul>
-  <p>Diese Woche erscheinen wieder einige Platten, die wir hier für euch gesammelt haben,
-     damit beim Stöbern nichts untergeht.</p>
+  <h2>Januar 2020</h2>
+  <p><em>03.01.20</em><br>
+     Beth Gibbons &#8211; Lives Outgrown<br>
+     Jamie xx &#8211; In Waves</p>
 </article></main></body></html>`;
 
 test('/api/alben liefert die Wochenliste und speichert sie', async () => {
@@ -193,8 +193,8 @@ test('/api/alben liefert die Wochenliste und speichert sie', async () => {
   assert.match(res.typ, /application\/json/);
 
   const daten = JSON.parse(res.text);
-  assert.strictEqual(daten.datum, '2026-08-14');
-  assert.strictEqual(daten.datumLesbar, 'Freitag, 14.08.2026');
+  assert.strictEqual(daten.datum, '2020-01-03');
+  assert.strictEqual(daten.datumLesbar, 'Freitag, 03.01.2020');
   assert.strictEqual(daten.alben.length, 2);
   assert.strictEqual(daten.alben[0].interpret, 'Beth Gibbons');
   assert.strictEqual(daten.alben[0].coverUrl, null, 'ohne Cover bleibt das Album bestehen');

@@ -73,10 +73,18 @@ node --check server.js && node --check lib/kino.js   # Syntaxprüfung
 - **Alben-Cache:** 3 Stunden im RAM, zusätzlich als `data/alben.json`. Die Liste wechselt nur
   einmal pro Woche, ihr Aufbau kostet aber einen Seitenabruf plus eine Cover-Suche je Album —
   deshalb hier der lange TTL und der warme Start.
-- **Das Alben-Datum wird gelesen, nicht gerechnet.** Verbindlich ist die Datumsangabe in der
-  Überschrift der tonspion-Seite. Steht dort noch der letzte Freitag, zeigt das Homeboard auch
-  den letzten Freitag — lieber ein sichtbar alter Stand als alte Alben, die als neu ausgegeben
-  werden. `<time datetime>` ist nur der Notnagel, es trägt oft das Artikeldatum.
+- **Die tonspion-Seite ist eine Monatsübersicht.** Unter einer Monatsüberschrift stehen mehrere
+  Datumszeilen im Format `TT.MM.JJ` (`14.08.26`), darunter jeweils die Alben dieses Freitags —
+  auch schon die kommender Wochen. `lib/musik.js` zerlegt die Seite deshalb in Datumsabschnitte
+  und nimmt den **jüngsten bereits erschienenen**. Alle Zeilen der Seite einzusammeln wäre falsch,
+  das ergäbe eine Mischung aus mehreren Wochen.
+- **Das Alben-Datum wird gelesen, nicht gerechnet.** Verbindlich ist die Datumszeile der Quelle.
+  Steht dort noch der letzte Freitag, zeigt das Homeboard auch den letzten Freitag — lieber ein
+  sichtbar alter Stand als alte Alben, die als neu ausgegeben werden.
+- **Nicht jede Albumzeile hat einen Trenner.** Bei manchen Einträgen fehlt auf der Quelle der
+  Gedankenstrich (`Dent May The Big One`). Solche Zeilen bleiben ungeteilt: `interpret` trägt den
+  ganzen Text, `titel` ist `null`. Ein geratener Schnitt wäre schlechter als ein ungetrennter
+  Eintrag, und wegwerfen wäre schlechter als beides.
 - **Datum** wird konsequent über `lib/datum.js` (`Intl.DateTimeFormat`, `timeZone: 'Europe/Berlin'`)
   gebildet, nicht über die Systemzeit. Bei Änderungen beibehalten — der Server läuft evtl. in UTC.
 - **Scraping ist per Definition fragil.** Ändert ein Kino sein Markup, bricht genau dieser
@@ -153,6 +161,7 @@ sie ein zweites Mal um.
   "alben": [
     { "interpret": "Beth Gibbons", "titel": "Lives Outgrown",
       "info": "Domino",           // kurzer Klammerzusatz der Quelle (Label/Genre), sonst null
+                                  // titel ist null, wenn die Zeile keinen Trenner hatte
       "url": "https://…",         // Link der Quelle, sonst null
       "coverUrl": "https://…" }   // iTunes-Cover, sonst null → Frontend zeigt Platzhalter
   ],
@@ -191,7 +200,7 @@ Die Analyse in `ANALYSIS.md` hat elf Befunde ergeben, alle behoben. Diese Vorkeh
 
 - **Scraper müssen laut scheitern.** Fehlt ein erwarteter HTML-Anker, wird geworfen
   (`lib/kino.js`: `Programm Heute` bei Studiokino, `.program_item` bei Moritzhof;
-  `lib/musik.js`: kein Datum bzw. keine erkennbare Albumzeile). Niemals eine
+  `lib/musik.js`: kein Datumsabschnitt bzw. keine erkennbare Albumzeile darin). Niemals eine
   leere Filmliste mit `fehler: null` **und** `hinweis: null` zurückgeben — sonst ist ein defekter
   Scraper nicht von einem spielfreien Tag zu unterscheiden. Dasselbe gilt für eine leere
   Albenliste: sie sähe aus wie „diese Woche erscheint nichts" und ist deshalb ein Fehler.

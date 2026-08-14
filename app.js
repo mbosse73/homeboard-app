@@ -368,9 +368,12 @@ function renderAlbum(album){
     ? `<img src="${escapeHtml(coverUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-initialen="${escapeHtml(kuerzel)}">`
     : coverPlatzhalter(kuerzel);
   const zusatz = album.info ? `<span class="zusatz">${escapeHtml(album.info)}</span>` : '';
+  // Bei manchen Zeilen der Quelle fehlt der Trenner zwischen Interpret und Titel; dann steht die
+  // ganze Zeile im Feld interpret und die zweite Zeile entfällt.
+  const albumtitel = album.titel ? `<span class="albumtitel">${escapeHtml(album.titel)}</span>` : '';
   const inhalt = `<div class="cover">${bild}</div>
     <span class="interpret">${escapeHtml(album.interpret)}</span>
-    <span class="albumtitel">${escapeHtml(album.titel)}</span>${zusatz}`;
+    ${albumtitel}${zusatz}`;
 
   const url = album.url ? sichereUrl(album.url) : null;
   return url
