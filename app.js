@@ -87,9 +87,10 @@ function aktualisiereAlleStaende(){
 }
 
 // ---------- View-Navigation ----------
-const VIEWS = ['home','kino','wetter'];
+const VIEWS = ['home','kino','wetter','alben'];
 let aktuelleView = 'home';
 let wetterGeladen = false;
+let albenGeladen = false;
 
 function zeigeView(name){
   if(!VIEWS.includes(name)) return;
@@ -99,6 +100,7 @@ function zeigeView(name){
   });
   if(name === 'kino'){ ladeKinoprogramm(false, false); }
   if(name === 'wetter' && !wetterGeladen){ wetterGeladen = true; ladeWetter(false, false); }
+  if(name === 'alben' && !albenGeladen){ albenGeladen = true; ladeAlben(false, false); }
 }
 
 document.querySelectorAll('[data-view]').forEach(el => {
@@ -123,6 +125,7 @@ document.addEventListener('keydown', (e) => {
   if(e.altKey && (e.key === 'm' || e.key === 'M')){ e.preventDefault(); toggleTheme(); return; }
   if(e.altKey && (e.key === 'k' || e.key === 'K')){ e.preventDefault(); zeigeView('kino'); return; }
   if(e.altKey && (e.key === 'w' || e.key === 'W')){ e.preventDefault(); zeigeView('wetter'); return; }
+  if(e.altKey && (e.key === 'a' || e.key === 'A')){ e.preventDefault(); zeigeView('alben'); return; }
   if(e.altKey && (e.key === 't' || e.key === 'T')){
     e.preventDefault();
     if(aktuelleView === 'kino') waehleKinoTag(kinoTag === 'heute' ? 'morgen' : 'heute');
@@ -344,12 +347,105 @@ async function ladeWetter(erzwingen, still){
 }
 document.getElementById('wetterRefreshBtn').addEventListener('click', () => ladeWetter(true, false));
 
+// ---------- Neue Alben ----------
+let albenInhaltGefuellt = false;
+let albenGeladenUm = 0;
+
+function initialen(interpret){
+  return String(interpret).split(/\s+/).filter(Boolean).slice(0,2)
+    .map(wort => wort[0].toUpperCase()).join('');
+}
+
+function coverPlatzhalter(kuerzel){
+  return `<div class="cover-leer"><span class="note">🎵</span><span class="initialen">${escapeHtml(kuerzel)}</span></div>`;
+}
+
+function renderAlbum(album){
+  const kuerzel = initialen(album.interpret);
+  const coverUrl = album.coverUrl ? sichereUrl(album.coverUrl) : null;
+  // data-initialen wird gebraucht, falls das Bild erst beim Laden scheitert (siehe unten).
+  const bild = coverUrl
+    ? `<img src="${escapeHtml(coverUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-initialen="${escapeHtml(kuerzel)}">`
+    : coverPlatzhalter(kuerzel);
+  const zusatz = album.info ? `<span class="zusatz">${escapeHtml(album.info)}</span>` : '';
+  const inhalt = `<div class="cover">${bild}</div>
+    <span class="interpret">${escapeHtml(album.interpret)}</span>
+    <span class="albumtitel">${escapeHtml(album.titel)}</span>${zusatz}`;
+
+  const url = album.url ? sichereUrl(album.url) : null;
+  return url
+    ? `<a class="album" href="${escapeHtml(url)}" target="_blank" rel="noopener">${inhalt}</a>`
+    : `<div class="album">${inhalt}</div>`;
+}
+
+async function ladeAlben(erzwingen, still){
+  const inhaltEl = document.getElementById('albenInhalt');
+  const standEl = document.getElementById('albenStand');
+  const refreshBtn = document.getElementById('albenRefreshBtn');
+  if(!still) refreshBtn.disabled = true;
+  if(erzwingen && !still){
+    inhaltEl.innerHTML = '<p class="lade-hinweis">Suche neue Alben…</p>';
+    albenInhaltGefuellt = false;
+  }
+  try{
+    const res = await fetch('api/alben' + (erzwingen ? '?refresh=1' : ''), { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const daten = await res.json();
+
+    setzeStand(standEl, daten.generiertAm, '');
+
+    // Der Server liefert bei einer Störung den letzten brauchbaren Stand mitsamt Fehlertext.
+    const stoerung = daten.fehler
+      ? `<div class="alben-stoerung">Die Quelle war zuletzt nicht erreichbar
+          (${escapeHtml(daten.fehler)}). Angezeigt wird der letzte gespeicherte Stand.</div>`
+      : '';
+
+    const quelle = sichereUrl(daten.quelle || '');
+    const quellLink = quelle
+      ? `<a class="quelle" href="${escapeHtml(quelle)}" target="_blank" rel="noopener">tonspion.de ↗</a>`
+      : '';
+
+    inhaltEl.innerHTML = stoerung + `<div class="alben-datum">
+        <span class="label">Neuerscheinungen vom</span>
+        <span class="datum">${escapeHtml(daten.datumLesbar)}</span>
+        <span class="anzahl">· ${daten.alben.length} ${daten.alben.length === 1 ? 'Album' : 'Alben'}</span>
+        ${quellLink}
+      </div>
+      <div class="alben-grid">${daten.alben.map(renderAlbum).join('')}</div>`;
+
+    // Ein Cover, das erst beim Laden scheitert (gelöscht, Netz weg), soll kein kaputtes Bild
+    // hinterlassen - dann greift derselbe Platzhalter wie bei einem gar nicht gefundenen Cover.
+    inhaltEl.querySelectorAll('.album .cover img').forEach(img => {
+      img.addEventListener('error', () => {
+        const cover = img.closest('.cover');
+        if(cover) cover.innerHTML = coverPlatzhalter(img.dataset.initialen || '');
+      });
+    });
+
+    albenInhaltGefuellt = true;
+    albenGeladenUm = Date.now();
+  }catch(err){
+    albenGeladenUm = Date.now() - AUTO_ALBEN_MS + 60000;
+    if(still && albenInhaltGefuellt) return;
+    inhaltEl.innerHTML = `<div class="leer-hinweis">
+      Neuerscheinungen konnten nicht geladen werden.<br>
+      <span class="hinweis">(${escapeHtml(err.message)} – hat der Homeboard-Server Internetzugriff?)</span>
+    </div>`;
+    albenInhaltGefuellt = false;
+  }finally{
+    if(!still) refreshBtn.disabled = false;
+  }
+}
+document.getElementById('albenRefreshBtn').addEventListener('click', () => ladeAlben(true, false));
+
 // ---------- Automatische Aktualisierung (Wandtablet-Dauerbetrieb) ----------
 // Die Seite wird auf dem Tablet tage- bis wochenlang nicht neu geladen. Ein Intervall prüft
 // daher regelmäßig, ob die sichtbare Ansicht veraltet ist, und lädt still nach. Erzwungen
 // (?refresh=1) wird dabei nie - über die Frische der Daten entscheidet der Server-Cache.
 const AUTO_KINO_MS = 15 * 60 * 1000;
 const AUTO_WETTER_MS = 10 * 60 * 1000;
+// Die Albenliste wechselt einmal pro Woche - häufiger als stündlich nachzufragen wäre sinnlos.
+const AUTO_ALBEN_MS = 60 * 60 * 1000;
 const TICK_MS = 30 * 1000;
 
 function pruefeAktualitaet(){
@@ -374,6 +470,9 @@ function pruefeAktualitaet(){
   }
   if(aktuelleView === 'wetter' && wetterGeladen && Date.now() - wetterGeladenUm > AUTO_WETTER_MS){
     ladeWetter(false, true);
+  }
+  if(aktuelleView === 'alben' && albenGeladen && Date.now() - albenGeladenUm > AUTO_ALBEN_MS){
+    ladeAlben(false, true);
   }
 }
 

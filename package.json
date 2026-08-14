@@ -9,7 +9,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Homeboard: lokaler Node-Server + Frontend ohne Build-Schritt mit Kinoprogramm (Magdeburg, heute und morgen) und Wetter. Kino- und Wetterdaten werden server-seitig geholt und zwischengespeichert (data/kino-<datum>.json als Cache).",
+  "description": "Homeboard: lokaler Node-Server + Frontend ohne Build-Schritt mit Kinoprogramm (Magdeburg, heute und morgen), Wetter und den Musik-Neuerscheinungen der Woche. Alle Fremddaten werden server-seitig geholt und zwischengespeichert (data/kino-<datum>.json und data/alben.json als Cache).",
   "dependencies": {
     "playwright": "^1.61.1"
   }

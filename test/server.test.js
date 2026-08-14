@@ -154,6 +154,72 @@ test('/api/wetter hält bei einer Störung den letzten Stand', async () => {
   assert.strictEqual(JSON.parse(res.text).jetzt.temperatur, 21.4);
 });
 
+// Der Alben-Cache liegt als data/alben.json auf der Platte. Läuft der Test auf dem Server,
+// darf er eine echte gespeicherte Liste nicht zerstören - deshalb sichern und zurücklegen.
+const ALBEN_DATEI = path.join(__dirname, '..', 'data', 'alben.json');
+let albenVorher = null;
+
+test.before(() => {
+  albenVorher = fs.existsSync(ALBEN_DATEI) ? fs.readFileSync(ALBEN_DATEI, 'utf8') : null;
+});
+test.after(() => {
+  if (albenVorher !== null) fs.writeFileSync(ALBEN_DATEI, albenVorher, 'utf8');
+  else if (fs.existsSync(ALBEN_DATEI)) fs.unlinkSync(ALBEN_DATEI);
+});
+
+const ALBEN_SEITE = `<html><body><main><article>
+  <h2>Neue Alben am 14.08.2026</h2>
+  <ul>
+    <li>Beth Gibbons &#8211; Lives Outgrown</li>
+    <li>Jamie xx &#8211; In Waves</li>
+  </ul>
+  <p>Diese Woche erscheinen wieder einige Platten, die wir hier für euch gesammelt haben,
+     damit beim Stöbern nichts untergeht.</p>
+</article></main></body></html>`;
+
+test('/api/alben liefert die Wochenliste und speichert sie', async () => {
+  let seitenAbrufe = 0;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('tonspion')) {
+      seitenAbrufe++;
+      return { ok: true, status: 200, text: async () => ALBEN_SEITE };
+    }
+    // Cover-Suche: kein Treffer, das Album muss trotzdem erscheinen.
+    return { ok: true, status: 200, json: async () => ({ results: [] }) };
+  };
+
+  const res = await hole('/api/alben');
+  assert.strictEqual(res.status, 200);
+  assert.match(res.typ, /application\/json/);
+
+  const daten = JSON.parse(res.text);
+  assert.strictEqual(daten.datum, '2026-08-14');
+  assert.strictEqual(daten.datumLesbar, 'Freitag, 14.08.2026');
+  assert.strictEqual(daten.alben.length, 2);
+  assert.strictEqual(daten.alben[0].interpret, 'Beth Gibbons');
+  assert.strictEqual(daten.alben[0].coverUrl, null, 'ohne Cover bleibt das Album bestehen');
+  assert.strictEqual(seitenAbrufe, 1);
+
+  await hole('/api/alben');
+  assert.strictEqual(seitenAbrufe, 1, 'der zweite Aufruf muss aus dem Cache kommen');
+
+  await hole('/api/alben?refresh=1');
+  assert.strictEqual(seitenAbrufe, 2, 'refresh=1 muss den Cache umgehen');
+
+  assert.ok(fs.existsSync(ALBEN_DATEI), 'eine brauchbare Liste wird für den warmen Start gespeichert');
+});
+
+test('/api/alben hält bei einer Störung den letzten Stand und benennt den Grund', async () => {
+  globalThis.fetch = async () => ({ ok: false, status: 503 });
+
+  const res = await hole('/api/alben?refresh=1');
+  assert.strictEqual(res.status, 200, 'eine Störung darf die Kachel nicht leeren');
+
+  const daten = JSON.parse(res.text);
+  assert.strictEqual(daten.alben.length, 2, 'der letzte brauchbare Stand bleibt stehen');
+  assert.match(daten.fehler, /HTTP 503/, 'das Frontend muss sagen können, warum es nicht frisch ist');
+});
+
 test('unbekannte Routen antworten mit 404', async () => {
   const res = await hole('/api/gibtsnicht');
   assert.strictEqual(res.status, 404);

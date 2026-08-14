@@ -47,11 +47,12 @@
         <span class="beschreibung">Aktuelles Wetter, Tagesverlauf &amp; 5-Tage-Vorhersage</span>
         <span class="kbd-hint">Alt+W</span>
       </button>
-      <div class="feature-tile placeholder">
-        <span class="icon">➕</span>
-        <span class="titel">Weitere Funktion</span>
-        <span class="beschreibung">Folgt in einem späteren Ausbauschritt</span>
-      </div>
+      <button class="feature-tile" data-view="alben">
+        <span class="icon">💿</span>
+        <span class="titel">Neue Alben</span>
+        <span class="beschreibung">Musik-Neuerscheinungen der Woche, jeden Freitag frisch</span>
+        <span class="kbd-hint">Alt+A</span>
+      </button>
     </div>
   </section>
 
@@ -85,6 +86,19 @@
     </div>
   </section>
 
+  <!-- ---------- Neue Alben ---------- -->
+  <section class="view" id="view-alben">
+    <div class="view-header">
+      <button class="btn" data-view="home">← Zurück</button>
+      <h2>💿 Neue Alben</h2>
+      <span class="stand" id="albenStand"></span>
+      <button class="btn" id="albenRefreshBtn" title="Neu laden">🔄</button>
+    </div>
+    <div id="albenInhalt">
+      <p class="lade-hinweis">Lade Neuerscheinungen… (beim ersten Mal werden auch die Cover gesucht)</p>
+    </div>
+  </section>
+
 </main>
 
 <footer>Homeboard · lokale Übersicht für Zuhause</footer>
@@ -94,12 +108,14 @@
   <div class="kbd-row"><span>Zur Startseite</span><kbd>Esc</kbd></div>
   <div class="kbd-row"><span>Kinoprogramm öffnen</span><kbd>Alt+K</kbd></div>
   <div class="kbd-row"><span>Wetter öffnen</span><kbd>Alt+W</kbd></div>
+  <div class="kbd-row"><span>Neue Alben öffnen</span><kbd>Alt+A</kbd></div>
   <div class="kbd-row"><span>Zwischen heute und morgen wechseln</span><kbd>Alt+T</kbd></div>
   <div class="kbd-row"><span>Hell-/Dunkelmodus</span><kbd>Alt+M</kbd></div>
   <div class="kbd-row"><span>Hilfe öffnen/schließen</span><kbd>?</kbd></div>
   <h3 style="margin-top:18px">Dauerbetrieb</h3>
   <p class="hinweis">Die geöffnete Ansicht aktualisiert sich selbst: Kinoprogramm alle 15 Minuten,
-    Wetter alle 10 Minuten. Beim Zurückkehren zum Tablet wird sofort nachgeladen.</p>
+    Wetter alle 10 Minuten, Neue Alben alle 60 Minuten. Beim Zurückkehren zum Tablet wird sofort
+    nachgeladen.</p>
   <div class="dlg-actions"><button class="btn primary" id="hilfeSchliessenBtn">Schließen</button></div>
 </dialog>
 

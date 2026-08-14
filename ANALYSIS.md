@@ -5,16 +5,16 @@ Stand des untersuchten Codes: Commit `4d88287`.
 
 > **Status:** Alle elf Befunde aus Abschnitt 2 sind behoben. Die Befundtexte bleiben als
 > Dokumentation des ursprünglichen Zustands stehen; jeder trägt einen Hinweis auf die Umsetzung.
-> Aus Abschnitt 3 sind **A1–A12 sowie B2–B6** umgesetzt; offen ist allein **B1** (dritte Kachel).
+> Aus Abschnitt 3 sind **A1–A12 und B1–B6** umgesetzt — damit ist der gesamte Abschnitt erledigt.
 > Beim Schreiben der Smoke-Tests (A10) kam ein zwölfter Befund hinzu, siehe **M5**.
 
 ---
 
 ## 1. Überblick
 
-**Homeboard** ist ein privates LAN-Dashboard mit zwei Funktionen: Kinoprogramm Magdeburg
-(vier Kinos) und Wetter Magdeburg. Es läuft als Node-Server, üblicherweise als Docker-Container
-auf einem Unraid-Server.
+**Homeboard** ist ein privates LAN-Dashboard mit drei Funktionen: Kinoprogramm Magdeburg
+(vier Kinos), Wetter Magdeburg und die Musik-Neuerscheinungen der Woche. Es läuft als
+Node-Server, üblicherweise als Docker-Container auf einem Unraid-Server.
 
 ### Architektur
 
@@ -219,7 +219,7 @@ für den lokalen Start vorgehalten, kein Befund.
 
 | # | Vorschlag | Aufwand | Nutzen | Status |
 |---|---|---|---|---|
-| B1 | Dritte Kachel füllen (Müllabfuhr, MVB-Abfahrten, Kalender) — Platzhalter existiert bereits | mittel | hoch | offen |
+| B1 | Dritte Kachel füllen — geworden ist es „Neue Alben" (Musik-Neuerscheinungen der Woche) | mittel | hoch | **umgesetzt** |
 | B2 | Auto-Refresh für den Wandtablet-Betrieb | niedrig | hoch | **umgesetzt** |
 | B3 | Wetter über den Server proxen (Caching, Client-Unabhängigkeit) | niedrig | mittel | **umgesetzt** |
 | B4 | Mehrtagesvorhersage (`forecast_days` 1 → 3–5) | niedrig | mittel | **umgesetzt** |
@@ -248,13 +248,36 @@ für den lokalen Start vorgehalten, kein Befund.
   Damit hat ein Kino genau einen von drei Zuständen: Filme, Hinweis oder Fehler. Der Cache ist
   jetzt pro Datum getrennt (`data/kino-<datum>.json`), veraltete Dateien räumt der Start weg.
 
-**Offen geblieben:** allein **B1** (dritte Kachel) — auf ausdrücklichen Wunsch zurückgestellt.
+- **B1:** Die dritte Kachel zeigt die Musik-Neuerscheinungen der Woche von
+  `tonspion.de/news/musik-neuerscheinungen-neue-alben`. Drei Entscheidungen prägen die Umsetzung:
+
+  1. **Das Datum wird gelesen, nicht gerechnet.** Verbindlich ist die Datumsangabe in der
+     Überschrift der Quelle. Der naheliegende Weg — „heute ist Freitag, also sind das die neuen
+     Alben" — wäre falsch, sobald die Seite noch nicht aktualisiert wurde. Lieber ein sichtbar
+     alter Stand als alte Alben, die als neu ausgegeben werden.
+  2. **Cover kommen aus einer zweiten Quelle.** tonspion liefert sie nicht; gesucht wird über die
+     iTunes-Suche (kein Schlüssel nötig, kein zusätzliches Paket). Der Interpretenname des
+     Treffers muss zum gesuchten passen, sonst bleibt das Cover leer — ein Karaoke-Cover wäre
+     schlimmer als gar keins. Jede Suche ist einzeln abgesichert: ein Fehlschlag kostet nie den
+     Albumeintrag, das Frontend zeigt dann einen Platzhalter in gleicher Größe.
+  3. **Der Parser scheitert laut.** Ohne erkennbares Datum oder ohne eine einzige Albumzeile wird
+     geworfen, statt eine leere Liste zurückzugeben — die sähe aus wie „diese Woche erscheint
+     nichts". Die Fehlermeldung nennt, wie viele Überschriften bzw. Textblöcke geprüft wurden,
+     damit eine Layoutänderung schnell einzugrenzen ist.
+
+  Die gemeinsamen HTML-Werkzeuge beider Scraper stehen jetzt in `lib/text.js`; `lib/kino.js`
+  nutzt sie unverändert weiter.
+
+**Einschränkung:** Das Markup von tonspion.de war während der Umsetzung nicht abrufbar (die Seite
+ist aus der Entwicklungsumgebung gesperrt). Die Regeln des Parsers sind gegen einen nachgebauten
+Fixture getestet, nicht gegen die echte Seite — der erste Lauf auf dem Server muss zeigen, ob sie
+greifen. Scheitert er, sagt die Fehlermeldung, an welcher Stelle.
 
 ---
 
 ## 4. Testlage
 
-`npm test` startet `node --test` mit vier Dateien unter `test/` (32 Tests, ~1,1 s). Kein
+`npm test` startet `node --test` mit fünf Dateien unter `test/` (52 Tests, ~1,8 s). Kein
 Test-Framework als Dependency — Bordmittel reichen und passen zum dependency-armen Ansatz.
 
 | Datei | Deckt ab |
@@ -262,11 +285,12 @@ Test-Framework als Dependency — Bordmittel reichen und passen zum dependency-a
 | `test/helfer.test.js` | `sichereUrl`, Entity-Dekodierung, Kürzung, Datumshelfer |
 | `test/kino.test.js` | Scraper gegen HTML-/JSON-Fixtures, Fehlerisolation, Parallelität, Zeitlimit |
 | `test/wetter.test.js` | Normalisierung, Stundenausschnitt, defekte Antworten |
-| `test/server.test.js` | Allowlist, `tag`-Validierung, Wetter-Cache, keine Persistenz bei Totalausfall |
+| `test/musik.test.js` | Datumserkennung, Albumzeilen, lautes Scheitern, Cover-Zuordnung |
+| `test/server.test.js` | Allowlist, `tag`-Validierung, Wetter- und Alben-Cache, keine Persistenz bei Totalausfall |
 
 Die Tests laufen **ohne Netzzugriff**: `globalThis.fetch` wird ersetzt, der Server startet mit
 `PORT=0`. Moritzhof lässt sich so nicht stubben (Playwright statt `fetch`) und scheitert im Test —
 genau das prüft der Isolationstest mit. Eine CI-Konfiguration gibt es weiterhin nicht.
 
 Nicht durch Tests abgedeckt und weiterhin nur manuell prüfbar (siehe Definition of Done in
-`CLAUDE.md`): das tatsächliche Scraping gegen die echten Kinoseiten.
+`CLAUDE.md`): das tatsächliche Scraping gegen die echten Kino- und tonspion-Seiten.

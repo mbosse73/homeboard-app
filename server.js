@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { erstelleKinoprogramm } = require('./lib/kino');
 const { holeWetter } = require('./lib/wetter');
+const { erstelleAlbenliste } = require('./lib/musik');
 const { heuteISO, morgenISO } = require('./lib/datum');
 
 const PORT = process.env.PORT || 3000;
@@ -12,7 +13,12 @@ const CACHE_TTL_MS = 45 * 60 * 1000; // 45 Minuten
 const FEHLER_TTL_MS = 3 * 60 * 1000; // Lieferte kein Kino Filme, nach 3 Minuten erneut versuchen
 const WETTER_TTL_MS = 15 * 60 * 1000; // Open-Meteo aktualisiert etwa viertelstündlich
 const WETTER_FEHLER_TTL_MS = 60 * 1000; // Nach einem Fehlschlag zügig erneut versuchen
+// Die Liste ändert sich einmal pro Woche. Häufiger als alle drei Stunden nachzusehen, brächte
+// nichts - kostet aber jedes Mal einen Seitenabruf und bis zu 80 Cover-Suchen.
+const ALBEN_TTL_MS = 3 * 60 * 60 * 1000;
+const ALBEN_FEHLER_TTL_MS = 10 * 60 * 1000;
 const DATENORDNER = path.join(__dirname, 'data');
+const ALBEN_DATEI = path.join(DATENORDNER, 'alben.json');
 
 // Nur diese beiden Tage sind über die API erreichbar. Ein freier Datumsparameter würde jeden
 // Aufruf in einen Scrape-Auftrag gegen vier Fremdseiten verwandeln.
@@ -126,6 +132,58 @@ async function holeWetterDaten(erzwingen) {
   }
 }
 
+// ---------- Alben-Cache ----------
+
+// Anders als beim Wetter lohnt der warme Start: die Wochenliste ist auch nach einem Neustart
+// noch gültig, und ihr Aufbau kostet einen Seitenabruf plus eine Cover-Suche je Album.
+let albenCache = null; // { daten, geladenUm }
+let laufenderAlbenAbruf = null;
+
+function ladeAlbenVonPlatte() {
+  try {
+    const bestehend = JSON.parse(fs.readFileSync(ALBEN_DATEI, 'utf8'));
+    if (bestehend && Array.isArray(bestehend.alben) && bestehend.alben.length > 0) {
+      albenCache = { daten: bestehend, geladenUm: Date.parse(bestehend.generiertAm) || 0 };
+      console.log(`Bestehende Albenliste vom ${bestehend.datum} als Cache übernommen.`);
+    }
+  } catch (e) {
+    // keine oder unlesbare Datei -> beim ersten Request wird frisch geladen
+  }
+}
+ladeAlbenVonPlatte();
+
+async function holeAlbenDaten(erzwingen) {
+  if (!erzwingen && albenCache && Date.now() - albenCache.geladenUm < ALBEN_TTL_MS) {
+    return albenCache.daten;
+  }
+  if (!laufenderAlbenAbruf) {
+    laufenderAlbenAbruf = erstelleAlbenliste().finally(() => {
+      laufenderAlbenAbruf = null;
+    });
+  }
+
+  try {
+    const daten = await laufenderAlbenAbruf;
+    albenCache = { daten, geladenUm: Date.now() };
+    try {
+      fs.mkdirSync(DATENORDNER, { recursive: true });
+      fs.writeFileSync(ALBEN_DATEI, JSON.stringify(daten, null, 2), 'utf8');
+    } catch (e) {
+      console.warn('Konnte Albenliste nicht speichern:', e.message);
+    }
+    return daten;
+  } catch (err) {
+    // Wie beim Wetter: eine Störung leert die Kachel nicht. Die Liste wird mit dem Fehler
+    // ausgeliefert, damit das Frontend sagen kann, warum der Stand nicht frisch ist.
+    if (albenCache) {
+      albenCache.geladenUm = Date.now() - ALBEN_TTL_MS + ALBEN_FEHLER_TTL_MS;
+      console.warn('Albenabruf fehlgeschlagen, liefere letzten Stand:', err.message);
+      return Object.assign({}, albenCache.daten, { fehler: err.message });
+    }
+    throw err;
+  }
+}
+
 // ---------- Statische Auslieferung ----------
 
 const MIME = {
@@ -181,6 +239,17 @@ const server = http.createServer(async (req, res) => {
       sendeJson(res, 200, daten);
     } catch (err) {
       console.error('Wetterabruf fehlgeschlagen:', err.message);
+      sendeJson(res, 502, { fehler: err.message });
+    }
+    return;
+  }
+
+  if (url.pathname === '/api/alben') {
+    try {
+      const daten = await holeAlbenDaten(url.searchParams.get('refresh') === '1');
+      sendeJson(res, 200, daten);
+    } catch (err) {
+      console.error('Albenabruf fehlgeschlagen:', err.message);
       sendeJson(res, 502, { fehler: err.message });
     }
     return;

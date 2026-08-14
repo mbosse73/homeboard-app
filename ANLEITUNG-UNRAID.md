@@ -36,8 +36,10 @@ homeboard/
 └── lib/
     ├── kino.js
     ├── wetter.js
+    ├── musik.js
     ├── http.js
-    └── datum.js
+    ├── datum.js
+    └── text.js
 ```
 
 (`node_modules`, `data`, `.claude`, `test`, `*.bat` werden nicht gebraucht — `node_modules` wird vom
@@ -114,7 +116,8 @@ HTTP 500").
 
 **Container startet nicht / "Cannot find module" in den Logs**
 Ordner `\\<unraid-ip>\appdata\homeboard\` prüfen — fehlt eine Datei aus der Liste in Schritt 2
-(insbesondere `lib/http.js`, `lib/datum.js` oder `lib/wetter.js`), war der Kopiervorgang unvollständig.
+(insbesondere `lib/http.js`, `lib/datum.js`, `lib/text.js`, `lib/wetter.js` oder `lib/musik.js`),
+war der Kopiervorgang unvollständig.
 
 **Seite ohne Gestaltung / Buttons ohne Funktion**
 `app.css` bzw. `app.js` fehlt im Zielordner. Schritt 2 wiederholen.
@@ -122,6 +125,19 @@ Ordner `\\<unraid-ip>\appdata\homeboard\` prüfen — fehlt eine Datei aus der L
 **Wetter-Kachel meldet einen Fehler, Kino funktioniert**
 Der Server erreicht `api.open-meteo.com` nicht. Netzwerkeinstellungen des Containers prüfen; die
 Kachel zeigt bei einer kurzen Störung weiterhin den letzten geladenen Stand samt Altersangabe.
+
+**Alben-Kachel meldet „keine Albumzeilen erkannt" oder „kein Erscheinungsdatum gefunden"**
+Das ist der beabsichtigte laute Fehler: tonspion hat den Aufbau der Seite geändert, und der
+Scraper erfindet lieber nichts. Die Kachel zeigt weiter den letzten gespeicherten Stand mit einem
+Hinweis darüber. Der Scraper in `lib/musik.js` muss dann an das neue Markup angepasst werden.
+
+**Alben werden angezeigt, aber ohne Cover**
+Die Cover kommen aus der iTunes-Suche, nicht von tonspion. Erreicht der Server
+`itunes.apple.com` nicht, bleiben die Platzhalter stehen — die Liste selbst funktioniert weiter.
+
+**Das Datum über den Alben ist nicht der heutige Freitag**
+Kein Fehler: angezeigt wird immer das Datum, das auf der tonspion-Seite über den Alben steht.
+Solange dort noch die Vorwoche steht, zeigt das Homeboard bewusst auch die Vorwoche.
 
 **Im `data`-Ordner liegt noch eine alte `kino.json`**
 Kein Problem: der Server heißt seine Cache-Dateien inzwischen `kino-<datum>.json` und räumt die alte
