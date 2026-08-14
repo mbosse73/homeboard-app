@@ -20,7 +20,7 @@ Von Windows aus per SMB-Freigabe, z. B. mit `robocopy`:
 
 ```powershell
 $ziel = "\\<unraid-ip>\appdata\homeboard"
-robocopy Z:\Programme\claude_programmiert\homeboard $ziel /E /XD node_modules data .claude /XF *.bat
+robocopy Z:\Programme\claude_programmiert\homeboard $ziel /E /XD node_modules data .claude .git /XF *.bat
 ```
 
 Danach sollte in `\\<unraid-ip>\appdata\homeboard\` liegen:
@@ -50,7 +50,7 @@ services:
     image: mcr.microsoft.com/playwright:v1.61.1-noble
     container_name: homeboard
     working_dir: /app
-    command: ["sh", "-c", "npm install --omit=dev --no-audit --no-fund && node server.js"]
+    command: ["sh", "-c", "npm ci --omit=dev --no-audit --no-fund && node server.js"]
     ports:
       - "3080:3000"
     volumes:
@@ -66,7 +66,7 @@ Falls Port `3080` bei dir schon belegt ist, links (Host-Seite) einfach eine ande
 `"3090:3000"`.
 
 **Save**, danach **Compose Up** klicken. Das Basis-Image wird beim ersten Mal heruntergeladen
-(ca. 1,5–2 GB, enthält Chromium bereits fertig installiert), danach läuft `npm install` (dauert nur
+(ca. 1,5–2 GB, enthält Chromium bereits fertig installiert), danach läuft `npm ci` (dauert nur
 wenige Sekunden, da nur ein kleines JS-Paket nachinstalliert wird — der Chromium-Browser selbst ist
 schon im Image enthalten) und startet den Server. Fortschritt im **Logs**-Fenster des Stacks
 mitverfolgbar.

@@ -1,2 +1,6 @@
 node_modules/
 .DS_Store
+
+# Laufzeit-Cache: wird vom Server bei jedem Scrape neu geschrieben und gehört
+# nicht unter Versionskontrolle.
+data/

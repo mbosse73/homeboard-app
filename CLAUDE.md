@@ -106,19 +106,25 @@ Ohne Netzugriff auf die Kinoseiten schlagen die Scraper mit `HTTP 403` o. ä. fe
 eine Umgebungs-, keine Codefrage. Für das Moritzhof-Scraping muss zusätzlich ein Chromium für
 Playwright installiert sein.
 
-## Bekannte Schwachstellen
+## Schutzmechanismen, die nicht aufgeweicht werden dürfen
 
-Vollständige Analyse in `ANALYSIS.md`. Die vier, die bei Änderungen am ehesten stören:
+Die Analyse in `ANALYSIS.md` hat elf Befunde ergeben, alle behoben. Diese Vorkehrungen bitte bei
+Änderungen erhalten:
 
-- **Stille Scraper-Fehlschläge** (`lib/kino.js:143`, `:177`): Fehlt der erwartete HTML-Anker,
-  entsteht eine leere Filmliste mit `fehler: null` — nicht unterscheidbar von einem spielfreien
-  Tag. Bei Scraper-Arbeit immer prüfen, ob `filme: []` echt ist.
-- **Kein `fetch`-Timeout** und **sequenzielle** Kino-Schleife: eine hängende Fremd-API blockiert
-  `/api/kino` unbegrenzt.
-- **Der statische Handler liefert jede Datei im App-Ordner aus**, auch `.git/config` und den
-  Quellcode. Beim Deployment `.git` nicht mitkopieren.
-- **Bei Totalausfall wird das Fehlerergebnis gecacht** (RAM + Platte) und 45 Minuten
-  ausgeliefert.
+- **Scraper müssen laut scheitern.** Fehlt ein erwarteter HTML-Anker, wird geworfen
+  (`lib/kino.js`: `Programm Heute` bei Studiokino, `.program_item` bei Moritzhof). Niemals eine
+  leere Filmliste mit `fehler: null` zurückgeben — sonst ist ein defekter Scraper nicht von einem
+  spielfreien Tag zu unterscheiden.
+- **Jede Fremdanfrage braucht ein Zeitlimit.** `holeMitTimeout()` statt nacktem `fetch()`
+  (`FETCH_TIMEOUT_MS`), zusätzlich `mitZeitlimit()` pro Kino (`KINO_TIMEOUT_MS`).
+- **Die vier Kinos laufen parallel** (`Promise.all` in `erstelleKinoprogramm`) — bei
+  Erweiterungen die Fehlerisolation pro Kino beibehalten.
+- **`OEFFENTLICHE_DATEIEN` in `server.js` ist eine Allowlist.** Neue Assets dort eintragen. Nicht
+  auf „alles im Ordner ausliefern" zurückbauen — sonst sind Quellcode und `.git` wieder abrufbar.
+- **Ein Ergebnis ohne einen einzigen Film wird nicht persistiert** und nur kurz gecacht
+  (`FEHLER_TTL_MS`), damit eine Störung nicht 45 Minuten nachwirkt.
+- **Fremd-URLs laufen durch `sichereUrl()`** (in `lib/kino.js` und `index.html`) — nur `http`/
+  `https`, damit kein `javascript:` in ein `href` gelangt.
 
 ## Backup / Rollback
 

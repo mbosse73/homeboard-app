@@ -515,6 +515,18 @@ function escapeHtml(text){
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// escapeHtml sichert den Attributwert, nicht das URL-Schema: "javascript:..." enthält keines
+// der maskierten Zeichen und käme unverändert durch. Links stammen teils aus Fremdseiten,
+// daher hier nur http/https zulassen (der Server prüft zusätzlich, siehe sichereUrl).
+function sichereUrl(url){
+  try{
+    const geprueft = new URL(url, location.href);
+    return (geprueft.protocol === 'http:' || geprueft.protocol === 'https:') ? geprueft.href : null;
+  }catch(e){
+    return null;
+  }
+}
+
 function renderKinoKarte(kino){
   let inhalt;
   if(kino.fehler){
@@ -527,7 +539,8 @@ function renderKinoKarte(kino){
       const chips = zeiten.map(z => `<span class="zeit-chip">${escapeHtml(z)}</span>`).join('');
       const info = f.info ? `<span class="film-info">${escapeHtml(f.info)}</span>` : '';
       const beschreibung = f.beschreibung ? `<p class="film-beschreibung">${escapeHtml(f.beschreibung)}</p>` : '';
-      const trailer = f.trailerUrl ? `<a class="film-trailer" href="${escapeHtml(f.trailerUrl)}" target="_blank" rel="noopener">▶ Trailer</a>` : '';
+      const trailerUrl = f.trailerUrl ? sichereUrl(f.trailerUrl) : null;
+      const trailer = trailerUrl ? `<a class="film-trailer" href="${escapeHtml(trailerUrl)}" target="_blank" rel="noopener">▶ Trailer</a>` : '';
       return `<li class="film"><div class="film-kopf"><span class="film-titel">${escapeHtml(f.titel)}</span>${info}</div>${beschreibung}<div class="film-zeiten">${chips}${trailer}</div></li>`;
     }).join('') + '</ul>';
   }
