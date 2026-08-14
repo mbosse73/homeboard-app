@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Homeboard: lokaler Node-Server + Single-File-Frontend mit Kinoprogramm (Magdeburg) und Wetter. Kinodaten werden bei Bedarf server-seitig gescraped und zwischengespeichert (data/kino.json als Cache).",
+  "description": "Homeboard: lokaler Node-Server + Frontend ohne Build-Schritt mit Kinoprogramm (Magdeburg, heute und morgen) und Wetter. Kino- und Wetterdaten werden server-seitig geholt und zwischengespeichert (data/kino-<datum>.json als Cache).",
   "dependencies": {
     "playwright": "^1.61.1"
   }

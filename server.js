@@ -4,67 +4,129 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { erstelleKinoprogramm } = require('./lib/kino');
+const { holeWetter } = require('./lib/wetter');
+const { heuteISO, morgenISO } = require('./lib/datum');
 
 const PORT = process.env.PORT || 3000;
 const CACHE_TTL_MS = 45 * 60 * 1000; // 45 Minuten
 const FEHLER_TTL_MS = 3 * 60 * 1000; // Lieferte kein Kino Filme, nach 3 Minuten erneut versuchen
-const DATENPFAD = path.join(__dirname, 'data', 'kino.json');
+const WETTER_TTL_MS = 15 * 60 * 1000; // Open-Meteo aktualisiert etwa viertelstündlich
+const WETTER_FEHLER_TTL_MS = 60 * 1000; // Nach einem Fehlschlag zügig erneut versuchen
+const DATENORDNER = path.join(__dirname, 'data');
 
-function heuteISO() {
-  return new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Berlin',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+// Nur diese beiden Tage sind über die API erreichbar. Ein freier Datumsparameter würde jeden
+// Aufruf in einen Scrape-Auftrag gegen vier Fremdseiten verwandeln.
+const ERLAUBTE_TAGE = { heute: heuteISO, morgen: morgenISO };
+
+function cacheDatei(datum) {
+  return path.join(DATENORDNER, `kino-${datum}.json`);
 }
 
-let cache = null; // { datum, daten, geladenUm }
-let laufenderScrape = null; // Promise, verhindert parallele Mehrfach-Scrapes bei gleichzeitigen Requests
+// ---------- Kino-Cache ----------
 
-// Beim Start: falls eine bereits generierte Datei von heute existiert, direkt als warmen Cache übernehmen,
-// damit der erste Seitenaufruf nach einem Server-Neustart nicht zwingend 20-30s warten muss.
-try {
-  const bestehend = JSON.parse(fs.readFileSync(DATENPFAD, 'utf8'));
-  if (bestehend && bestehend.datum === heuteISO() && (bestehend.kinos || []).some((k) => (k.filme || []).length > 0)) {
-    cache = { datum: bestehend.datum, daten: bestehend, geladenUm: Date.parse(bestehend.generiertAm) || Date.now() };
-    console.log('Bestehende Kinodaten von heute als Cache übernommen.');
+const kinoCache = new Map(); // datum -> { daten, geladenUm }
+const laufendeScrapes = new Map(); // datum -> Promise, verhindert parallele Mehrfach-Scrapes
+
+// Beim Start: bereits generierte Dateien für heute/morgen als warmen Cache übernehmen, damit der
+// erste Seitenaufruf nach einem Server-Neustart nicht zwingend 20-30s warten muss. Alles, was
+// weder heute noch morgen betrifft, ist Altlast und wird entfernt.
+function ladeCacheVonPlatte() {
+  const gueltig = new Set([heuteISO(), morgenISO()]);
+
+  for (const datum of gueltig) {
+    try {
+      const bestehend = JSON.parse(fs.readFileSync(cacheDatei(datum), 'utf8'));
+      if (bestehend && bestehend.datum === datum && (bestehend.kinos || []).some((k) => (k.filme || []).length > 0)) {
+        kinoCache.set(datum, { daten: bestehend, geladenUm: Date.parse(bestehend.generiertAm) || Date.now() });
+        console.log(`Bestehende Kinodaten für ${datum} als Cache übernommen.`);
+      }
+    } catch (e) {
+      // keine oder unlesbare Datei -> beim ersten Request wird frisch geladen
+    }
   }
-} catch (e) {
-  // keine oder unlesbare Datei -> beim ersten Request wird frisch geladen
+
+  try {
+    for (const name of fs.readdirSync(DATENORDNER)) {
+      const treffer = name.match(/^kino-(\d{4}-\d{2}-\d{2})\.json$/);
+      // kino.json ist der Dateiname aus der Zeit vor der Morgen-Vorschau und wird nicht mehr
+      // geschrieben; er darf nicht als Karteileiche liegenbleiben.
+      const veraltet = name === 'kino.json' || (treffer && !gueltig.has(treffer[1]));
+      if (veraltet) fs.unlinkSync(path.join(DATENORDNER, name));
+    }
+  } catch (e) {
+    // Ordner existiert noch nicht oder ist nicht lesbar - dann gibt es auch nichts aufzuräumen.
+  }
 }
+ladeCacheVonPlatte();
 
-async function holeKinoDaten(erzwingen) {
-  const heute = heuteISO();
-  if (!erzwingen && cache && cache.datum === heute && Date.now() - cache.geladenUm < CACHE_TTL_MS) {
-    return cache.daten;
+async function holeKinoDaten(datum, erzwingen) {
+  const zwischenstand = kinoCache.get(datum);
+  if (!erzwingen && zwischenstand && Date.now() - zwischenstand.geladenUm < CACHE_TTL_MS) {
+    return zwischenstand.daten;
   }
-  if (!laufenderScrape) {
-    laufenderScrape = erstelleKinoprogramm().finally(() => {
-      laufenderScrape = null;
-    });
+
+  if (!laufendeScrapes.has(datum)) {
+    laufendeScrapes.set(
+      datum,
+      erstelleKinoprogramm(datum).finally(() => laufendeScrapes.delete(datum))
+    );
   }
-  const daten = await laufenderScrape;
+  const daten = await laufendeScrapes.get(datum);
 
   // Hat kein einziges Kino Filme geliefert, ist das mit hoher Wahrscheinlichkeit eine Störung
   // (Netzausfall, alle Seiten umgebaut) und kein spielfreier Tag. Solch ein Ergebnis darf weder
   // 45 Minuten im RAM festhängen noch den zuletzt brauchbaren Stand auf der Platte überschreiben.
   const brauchbar = daten.kinos.some((k) => k.filme.length > 0);
   if (!brauchbar) {
-    console.warn('Kein Kino lieferte Filme - Ergebnis wird nur kurz gecacht und nicht gespeichert.');
-    cache = { datum: heute, daten, geladenUm: Date.now() - CACHE_TTL_MS + FEHLER_TTL_MS };
+    console.warn(`Kein Kino lieferte Filme für ${datum} - Ergebnis wird nur kurz gecacht und nicht gespeichert.`);
+    kinoCache.set(datum, { daten, geladenUm: Date.now() - CACHE_TTL_MS + FEHLER_TTL_MS });
     return daten;
   }
 
-  cache = { datum: heute, daten, geladenUm: Date.now() };
+  kinoCache.set(datum, { daten, geladenUm: Date.now() });
   try {
-    fs.mkdirSync(path.dirname(DATENPFAD), { recursive: true });
-    fs.writeFileSync(DATENPFAD, JSON.stringify(daten, null, 2), 'utf8');
+    fs.mkdirSync(DATENORDNER, { recursive: true });
+    fs.writeFileSync(cacheDatei(datum), JSON.stringify(daten, null, 2), 'utf8');
   } catch (e) {
     console.warn('Konnte Kino-Cache-Datei nicht schreiben:', e.message);
   }
   return daten;
 }
+
+// ---------- Wetter-Cache ----------
+
+// Nur im RAM: eine Wettervorhersage von gestern ist wertlos, ein warmer Start bringt hier also
+// nichts, und der Abruf dauert ohnehin nur Millisekunden.
+let wetterCache = null; // { daten, geladenUm }
+let laufenderWetterAbruf = null;
+
+async function holeWetterDaten(erzwingen) {
+  if (!erzwingen && wetterCache && Date.now() - wetterCache.geladenUm < WETTER_TTL_MS) {
+    return wetterCache.daten;
+  }
+  if (!laufenderWetterAbruf) {
+    laufenderWetterAbruf = holeWetter().finally(() => {
+      laufenderWetterAbruf = null;
+    });
+  }
+  try {
+    const daten = await laufenderWetterAbruf;
+    wetterCache = { daten, geladenUm: Date.now() };
+    return daten;
+  } catch (err) {
+    // Scheitert der Abruf, bleibt der letzte brauchbare Stand stehen - eine kurz gestörte
+    // Internetverbindung soll die Kachel nicht leeren. Der Client erkennt am Alter, wie frisch
+    // die Daten sind.
+    if (wetterCache) {
+      wetterCache.geladenUm = Date.now() - WETTER_TTL_MS + WETTER_FEHLER_TTL_MS;
+      console.warn('Wetterabruf fehlgeschlagen, liefere letzten Stand:', err.message);
+      return wetterCache.daten;
+    }
+    throw err;
+  }
+}
+
+// ---------- Statische Auslieferung ----------
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -82,24 +144,44 @@ const MIME = {
 const OEFFENTLICHE_DATEIEN = new Map([
   ['/', 'index.html'],
   ['/index.html', 'index.html'],
+  ['/app.css', 'app.css'],
+  ['/app.js', 'app.js'],
 ]);
+
+function sendeJson(res, status, objekt) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(objekt));
+}
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (url.pathname === '/api/kino') {
+    const tag = url.searchParams.get('tag') || 'heute';
+    if (!Object.prototype.hasOwnProperty.call(ERLAUBTE_TAGE, tag)) {
+      sendeJson(res, 400, { fehler: `Unbekannter Tag "${tag}" - erlaubt sind heute und morgen.` });
+      return;
+    }
     try {
-      const erzwingen = url.searchParams.get('refresh') === '1';
-      const daten = await holeKinoDaten(erzwingen);
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify(daten));
+      const daten = await holeKinoDaten(ERLAUBTE_TAGE[tag](), url.searchParams.get('refresh') === '1');
+      sendeJson(res, 200, daten);
     } catch (err) {
       // Absicherung, kein Regelfall: erstelleKinoprogramm() fängt Fehler pro Kino ab und wirft
       // normalerweise nicht. Greift dieser Zweig, ist etwas Unerwartetes passiert (z.B. defekte
       // Intl-Daten) - dann ist eine saubere 502 besser als ein Absturz des Request-Handlers.
       console.error('Unerwarteter Fehler in /api/kino:', err);
-      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify({ fehler: err.message }));
+      sendeJson(res, 502, { fehler: err.message });
+    }
+    return;
+  }
+
+  if (url.pathname === '/api/wetter') {
+    try {
+      const daten = await holeWetterDaten(url.searchParams.get('refresh') === '1');
+      sendeJson(res, 200, daten);
+    } catch (err) {
+      console.error('Wetterabruf fehlgeschlagen:', err.message);
+      sendeJson(res, 502, { fehler: err.message });
     }
     return;
   }
@@ -125,7 +207,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Homeboard läuft auf http://localhost:${PORT}`);
+  console.log(`Homeboard läuft auf http://localhost:${server.address().port}`);
 });
 
 // docker stop schickt SIGTERM und wartet 10 Sekunden, bevor hart gekillt wird. Ohne Handler
@@ -138,3 +220,7 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
     setTimeout(() => process.exit(0), 5000).unref();
   });
 }
+
+// Damit die Smoke-Tests den Server auf einem freien Port (PORT=0) starten und sauber wieder
+// schließen können.
+module.exports = server;

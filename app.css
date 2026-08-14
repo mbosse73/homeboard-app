@@ -1,0 +1,384 @@
+:root{
+  color-scheme: dark;
+  --tint:255,255,255;
+
+  --bg:transparent;
+  --glass-bg:rgba(var(--tint),0.10);
+  --glass-bg-mid:rgba(var(--tint),0.14);
+  --glass-bg-strong:rgba(var(--tint),0.20);
+  --glass-border:rgba(var(--tint),0.22);
+  --glass-border-soft:rgba(var(--tint),0.12);
+  --glass-shadow:0 8px 32px rgba(0,0,0,0.28), 0 1.5px 4px rgba(0,0,0,0.18);
+  --glass-shadow-sm:0 4px 16px rgba(0,0,0,0.20);
+  --glass-blur:blur(18px);
+  --glass-blur-sm:blur(10px);
+
+  --text:rgba(var(--tint),0.95);
+  --text-2:rgba(var(--tint),0.72);
+  --muted:rgba(var(--tint),0.45);
+  --card:rgba(var(--tint),0.10);
+  --border:rgba(var(--tint),0.20);
+  --border-soft:rgba(var(--tint),0.10);
+
+  --accent:#60a5fa;
+  --accent-light:rgba(96,165,250,0.18);
+  --high:#f87171;
+  --high-light:rgba(248,113,113,0.18);
+  --medium:#fbbf24;
+  --medium-light:rgba(251,191,36,0.18);
+  --low:#34d399;
+  --low-light:rgba(52,211,153,0.18);
+
+  --warn-bg:rgba(251,191,36,0.15);
+  --warn-bg-strong:rgba(251,191,36,0.25);
+  --warn-border:rgba(251,191,36,0.40);
+  --warn-text:#fde68a;
+
+  --info-border:rgba(96,165,250,0.40);
+  --danger-border:rgba(248,113,113,0.40);
+  --success-border:rgba(52,211,153,0.40);
+  --purple:#a78bfa;
+  --purple-light:rgba(167,139,250,0.18);
+  --purple-border:rgba(167,139,250,0.40);
+
+  --radius:12px;
+  --shadow:var(--glass-shadow-sm);
+  --kbd-shadow-b:0 1px 0 rgba(0,0,0,0.35);
+
+  --panel-bg:rgba(13,26,54,0.86);
+  --panel-backdrop:rgba(6,12,26,0.55);
+
+  --bg-gradient:
+    radial-gradient(ellipse 80% 60% at 10% 0%,   #1e3a5f 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 5%,   #0f2744 0%, transparent 55%),
+    radial-gradient(ellipse 50% 70% at 50% 100%, #0c1e3a 0%, transparent 65%),
+    radial-gradient(ellipse 40% 40% at 80% 60%,  #1a2f55 0%, transparent 50%),
+    linear-gradient(160deg, #0d1f3c 0%, #0a1628 40%, #0c2040 100%);
+}
+:root[data-theme="light"]{
+  color-scheme: light;
+  --tint:29,29,31;
+  --glass-bg:rgba(255,255,255,0.55);
+  --glass-bg-mid:rgba(255,255,255,0.74);
+  --glass-bg-strong:rgba(255,255,255,0.92);
+  --glass-border:rgba(29,29,31,0.10);
+  --glass-border-soft:rgba(29,29,31,0.06);
+  --glass-shadow:0 6px 20px rgba(29,29,31,0.09), 0 1.5px 4px rgba(29,29,31,0.05);
+  --glass-shadow-sm:0 1px 3px rgba(29,29,31,0.07), 0 1px 2px rgba(29,29,31,0.04);
+  --radius:14px;
+  --card:rgba(255,255,255,0.8);
+  --border:rgba(29,29,31,0.13);
+  --border-soft:rgba(29,29,31,0.08);
+  --accent:#0071e3;
+  --accent-light:rgba(0,113,227,0.10);
+  --high:#dc2626;
+  --high-light:rgba(220,38,38,0.10);
+  --medium:#b45309;
+  --medium-light:rgba(180,83,9,0.12);
+  --low:#059669;
+  --low-light:rgba(5,150,105,0.10);
+  --warn-bg:rgba(180,83,9,0.10);
+  --warn-bg-strong:rgba(180,83,9,0.18);
+  --warn-border:rgba(180,83,9,0.35);
+  --warn-text:#7a4a00;
+  --info-border:rgba(0,113,227,0.35);
+  --danger-border:rgba(220,38,38,0.35);
+  --success-border:rgba(5,150,105,0.35);
+  --purple:#7c3aed;
+  --purple-light:rgba(124,58,237,0.12);
+  --purple-border:rgba(124,58,237,0.35);
+  --kbd-shadow-b:0 1px 0 rgba(29,29,31,0.12);
+  --panel-bg:rgba(255,255,255,0.92);
+  --panel-backdrop:rgba(29,29,31,0.30);
+  --bg-gradient:linear-gradient(180deg, #f7f8fa 0%, #eef0f2 100%);
+}
+[data-theme="light"] .toast,
+[data-theme="light"] dialog{
+  box-shadow:0 16px 44px rgba(29,29,31,0.16), 0 2px 8px rgba(29,29,31,0.08);
+}
+[data-theme="light"] .btn:hover{ box-shadow:0 6px 18px rgba(29,29,31,0.14); }
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  font-size:14px;line-height:1.55;
+  color:var(--text);
+  padding:24px 28px 40px;
+  min-height:100vh;
+  background:var(--bg-gradient);
+  background-attachment:fixed;
+  transition:background .25s ease;
+}
+a{color:inherit;}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+/* ---------- Kopfzeile ---------- */
+.app-header{
+  max-width:1100px;margin:0 auto 22px;
+  display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;
+}
+.app-header h1{font-size:1.7rem;letter-spacing:-.01em;}
+.app-header .untertitel{color:var(--text-2);font-size:13px;margin-top:2px;text-transform:capitalize;}
+.header-actions{display:flex;gap:8px;}
+
+/* ---------- Buttons ---------- */
+.btn{
+  background:var(--glass-bg-mid);
+  border:1px solid var(--glass-border);
+  border-radius:8px;
+  padding:7px 13px;font-size:13px;cursor:pointer;color:var(--text);
+  box-shadow:var(--glass-shadow-sm);
+  backdrop-filter:var(--glass-blur-sm);
+  -webkit-backdrop-filter:var(--glass-blur-sm);
+  transition:background .14s,border-color .14s,box-shadow .14s;
+  line-height:1;
+}
+.btn:hover{
+  background:var(--glass-bg-strong);
+  border-color:rgba(var(--tint),0.35);
+  box-shadow:0 6px 20px rgba(0,0,0,0.28);
+}
+.btn.primary{
+  background:var(--accent);color:#fff;border-color:rgba(var(--tint),0.25);
+  font-weight:600;box-shadow:0 2px 12px rgba(96,165,250,.40);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+.btn.primary:hover{filter:brightness(1.12);box-shadow:0 4px 20px rgba(96,165,250,.55);}
+.btn[disabled]{opacity:.5;cursor:default;}
+
+/* ---------- Views ---------- */
+main{max-width:1100px;margin:0 auto;}
+.view{display:none;}
+.view.active{display:block;}
+
+/* ---------- Startseite: Kachel-Grid ---------- */
+.feature-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:16px;
+}
+.feature-tile{
+  background:var(--glass-bg-mid);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);
+  padding:22px 20px;
+  box-shadow:var(--glass-shadow-sm);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+  cursor:pointer;
+  text-align:left;
+  color:var(--text);
+  font:inherit;
+  transition:background .14s,border-color .14s,box-shadow .14s,transform .14s;
+  display:flex;flex-direction:column;gap:6px;
+}
+.feature-tile:hover{
+  background:var(--glass-bg-strong);
+  border-color:rgba(var(--tint),0.35);
+  box-shadow:0 10px 28px rgba(0,0,0,0.30);
+  transform:translateY(-2px);
+}
+.feature-tile .icon{font-size:2rem;line-height:1;}
+.feature-tile .titel{font-size:1.05rem;font-weight:700;}
+.feature-tile .beschreibung{font-size:12.5px;color:var(--text-2);}
+.feature-tile .kbd-hint{margin-top:4px;font-size:11px;color:var(--muted);}
+
+.feature-tile.placeholder{
+  cursor:default;
+  border-style:dashed;
+  box-shadow:none;
+  background:rgba(var(--tint),0.05);
+}
+.feature-tile.placeholder:hover{transform:none;box-shadow:none;background:rgba(var(--tint),0.05);}
+.feature-tile.placeholder .titel{opacity:.55;}
+.feature-tile.placeholder .beschreibung{opacity:.5;}
+
+/* ---------- Sub-View Kopf (Zurück-Button + Titel) ---------- */
+.view-header{
+  display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap;
+}
+.view-header h2{font-size:1.4rem;}
+.view-header .stand{color:var(--muted);font-size:12px;margin-left:auto;}
+
+/* ---------- Tagesumschalter (heute / morgen) ---------- */
+.tag-wahl{display:flex;gap:6px;}
+.tag-wahl .btn.aktiv{
+  background:var(--accent);color:#fff;font-weight:600;
+  border-color:rgba(var(--tint),0.25);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+.tag-wahl .btn.aktiv:hover{filter:brightness(1.12);}
+
+/* ---------- Karten (Glass Cards) ---------- */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:16px;
+}
+.group-card{
+  background:var(--glass-bg-mid);
+  border:1px solid var(--glass-border);
+  border-radius:var(--radius);
+  padding:16px 18px 18px;
+  box-shadow:var(--glass-shadow-sm);
+  backdrop-filter:var(--glass-blur);
+  -webkit-backdrop-filter:var(--glass-blur);
+}
+.group-card h3{
+  font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--purple);
+  border-bottom:1.5px solid currentColor;padding-bottom:7px;margin-bottom:10px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.group-card h3 a{color:inherit;text-decoration:none;}
+.group-card h3 a:hover{text-decoration:underline;}
+
+.filmliste{list-style:none;}
+.film{padding:8px 0;border-top:1px solid var(--border-soft);}
+.film:first-child{border-top:none;padding-top:0;}
+.film-kopf{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 8px;margin-bottom:6px;}
+.film-titel{font-weight:600;font-size:13.5px;}
+.film-info{color:var(--muted);font-size:12px;}
+.film-zeiten{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+
+.film-beschreibung{
+  color:var(--text-2);
+  font-size:12.5px;
+  line-height:1.5;
+  margin:0 0 8px;
+}
+
+.film-trailer{
+  margin-left:auto;
+  font-size:12.5px;
+  font-weight:600;
+  color:var(--accent);
+  text-decoration:none;
+  white-space:nowrap;
+}
+.film-trailer:hover{text-decoration:underline;}
+
+.zeit-chip{
+  background:rgba(var(--tint),0.10);
+  border:1px solid var(--border-soft);
+  color:var(--text-2);
+  border-radius:999px;
+  padding:3px 11px;
+  font-size:12.5px;
+  font-variant-numeric:tabular-nums;
+}
+
+.hinweis{color:var(--text-2);font-size:13px;line-height:1.6;}
+.hinweis a{color:var(--accent);}
+
+.leer-hinweis{
+  border:1px dashed var(--border);
+  border-radius:var(--radius);
+  padding:28px;
+  text-align:center;
+  color:var(--muted);
+}
+
+/* ---------- Wetter ---------- */
+.wetter-jetzt{
+  display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+}
+.wetter-jetzt .icon{font-size:3.4rem;line-height:1;}
+.wetter-jetzt .temp{font-size:2.6rem;font-weight:700;line-height:1;}
+.wetter-jetzt .beschreibung{color:var(--text-2);font-size:14px;margin-top:4px;}
+.wetter-stats{
+  display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;
+}
+.stat-pill{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--glass-bg-mid);
+  border:1px solid var(--glass-border);border-radius:999px;
+  padding:5px 14px 5px 10px;font-size:13px;color:var(--text-2);
+  box-shadow:var(--glass-shadow-sm);
+  backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
+}
+.stat-pill .num{font-size:14px;font-weight:700;color:var(--accent);}
+
+.abschnitt-titel{
+  font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--muted);margin:18px 0 2px;
+}
+
+.stunden-leiste{
+  display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;margin-top:6px;
+}
+.stunde{
+  flex:0 0 auto;
+  min-width:64px;
+  background:rgba(var(--tint),0.08);
+  border:1px solid var(--border-soft);
+  border-radius:10px;
+  padding:10px 8px;
+  text-align:center;
+}
+.stunde .zeit{font-size:11.5px;color:var(--muted);}
+.stunde .icon{font-size:1.3rem;margin:4px 0;}
+.stunde .temp{font-size:13px;font-weight:600;}
+.stunde .regen{font-size:11px;color:var(--accent);}
+.stunde.jetzt{border-color:var(--accent);background:var(--accent-light);}
+
+/* ---------- Mehrtagesvorhersage ---------- */
+.tage-leiste{
+  display:flex;gap:8px;overflow-x:auto;padding:4px 2px 6px;margin-top:6px;
+}
+.wetter-tag{
+  flex:1 1 0;
+  min-width:96px;
+  background:rgba(var(--tint),0.08);
+  border:1px solid var(--border-soft);
+  border-radius:10px;
+  padding:10px 8px;
+  text-align:center;
+}
+.wetter-tag .name{font-size:11.5px;color:var(--muted);}
+.wetter-tag .icon{font-size:1.6rem;margin:5px 0;}
+.wetter-tag .temps{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;}
+.wetter-tag .temps .min{color:var(--text-2);font-weight:400;}
+.wetter-tag .regen{font-size:11px;color:var(--accent);}
+.wetter-tag.heute{border-color:var(--accent);background:var(--accent-light);}
+
+/* ---------- Ladezustand ---------- */
+.lade-hinweis{color:var(--muted);padding:20px 0;}
+
+/* ---------- Dialog (Hilfe) ---------- */
+dialog{
+  border-radius:16px;
+  border:1px solid var(--glass-border);
+  padding:22px;
+  box-shadow:0 16px 48px rgba(0,0,0,0.50), 0 2px 8px rgba(0,0,0,0.30);
+  color:var(--text);font-family:inherit;font-size:14px;
+  width:clamp(320px,92vw,440px);margin:auto;
+  background:var(--panel-bg);
+  backdrop-filter:blur(28px);
+  -webkit-backdrop-filter:blur(28px);
+}
+dialog::backdrop{background:var(--panel-backdrop);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+dialog h3{font-size:15px;font-weight:700;margin-bottom:16px;}
+.kbd-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;color:var(--text-2);}
+kbd{
+  background:rgba(var(--tint),0.14);
+  border:1px solid var(--glass-border);
+  border-radius:5px;
+  padding:2px 7px;
+  font-size:12px;font-family:inherit;
+  box-shadow:var(--kbd-shadow-b);
+  color:var(--text);
+}
+dialog .dlg-actions{margin-top:18px;display:flex;justify-content:flex-end;}
+
+footer{
+  max-width:1100px;margin:30px auto 0;color:var(--muted);font-size:12px;text-align:center;
+}
+
+@media (max-width:560px){
+  body{padding:18px 14px 30px;}
+  .app-header{align-items:flex-start;}
+  .wetter-jetzt .temp{font-size:2.1rem;}
+  .view-header .stand{margin-left:0;width:100%;}
+}

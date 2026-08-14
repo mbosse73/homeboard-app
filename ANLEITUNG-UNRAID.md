@@ -20,7 +20,7 @@ Von Windows aus per SMB-Freigabe, z. B. mit `robocopy`:
 
 ```powershell
 $ziel = "\\<unraid-ip>\appdata\homeboard"
-robocopy Z:\Programme\claude_programmiert\homeboard $ziel /E /XD node_modules data .claude .git /XF *.bat
+robocopy Z:\Programme\claude_programmiert\homeboard $ziel /E /XD node_modules data .claude .git test /XF *.bat
 ```
 
 Danach sollte in `\\<unraid-ip>\appdata\homeboard\` liegen:
@@ -31,12 +31,22 @@ homeboard/
 ├── package-lock.json
 ├── server.js
 ├── index.html
+├── app.css
+├── app.js
 └── lib/
-    └── kino.js
+    ├── kino.js
+    ├── wetter.js
+    ├── http.js
+    └── datum.js
 ```
 
-(`node_modules`, `data`, `.claude`, `*.bat` werden nicht gebraucht — `node_modules` wird vom Container
-selbst frisch für Linux erzeugt, `data` legt der Server beim ersten Start automatisch an.)
+(`node_modules`, `data`, `.claude`, `test`, `*.bat` werden nicht gebraucht — `node_modules` wird vom
+Container selbst frisch für Linux erzeugt, `data` legt der Server beim ersten Start automatisch an,
+und die Smoke-Tests laufen auf dem Entwicklungsrechner, nicht im Container.)
+
+**Alle Dateien kopieren, auch die neuen.** Fehlt `app.css` oder `app.js`, lädt die Seite ohne
+Gestaltung bzw. ohne Funktion — der Server liefert nur ausdrücklich freigegebene Dateien aus, und
+diese beiden stehen auf der Liste.
 
 ## 3. Stack im Compose Manager anlegen
 
@@ -78,8 +88,15 @@ http://<unraid-ip>:3080
 ```
 
 Kinoprogramm-Kachel klicken. Erster Aufruf kann ~10–20 Sekunden dauern (Chromium scraped Moritzhof
-live), danach ist es für 45 Minuten aus dem Cache sofort da. 🔄-Button erzwingt bei Bedarf ein
-sofortiges Neuladen.
+live), danach ist es für 45 Minuten aus dem Cache sofort da. Über **Heute / Morgen** lässt sich die
+Vorschau umschalten; der 🔄-Button erzwingt bei Bedarf ein sofortiges Neuladen.
+
+Die Wetterdaten holt seit dieser Version der **Server** von Open-Meteo und nicht mehr der Browser.
+Der Container braucht dafür Internetzugriff — den benötigt er für die Kinoseiten ohnehin.
+
+Für den Wandtablet-Betrieb muss die Seite nicht mehr manuell neu geladen werden: die geöffnete
+Ansicht aktualisiert sich selbst (Kino alle 15, Wetter alle 10 Minuten), und beim Zurückkehren zum
+Tablet wird sofort nachgeladen. Neben dem Zeitstempel steht, wie alt der angezeigte Stand ist.
 
 ## 5. Aktualisieren
 
@@ -96,8 +113,19 @@ der vier Kino-Seiten meldet gerade selbst einen Fehler (steht dann konkret im Lo
 HTTP 500").
 
 **Container startet nicht / "Cannot find module" in den Logs**
-Ordner `\\<unraid-ip>\appdata\homeboard\` prüfen — fehlt `package.json` oder `server.js`, war Schritt 2
-unvollständig.
+Ordner `\\<unraid-ip>\appdata\homeboard\` prüfen — fehlt eine Datei aus der Liste in Schritt 2
+(insbesondere `lib/http.js`, `lib/datum.js` oder `lib/wetter.js`), war der Kopiervorgang unvollständig.
+
+**Seite ohne Gestaltung / Buttons ohne Funktion**
+`app.css` bzw. `app.js` fehlt im Zielordner. Schritt 2 wiederholen.
+
+**Wetter-Kachel meldet einen Fehler, Kino funktioniert**
+Der Server erreicht `api.open-meteo.com` nicht. Netzwerkeinstellungen des Containers prüfen; die
+Kachel zeigt bei einer kurzen Störung weiterhin den letzten geladenen Stand samt Altersangabe.
+
+**Im `data`-Ordner liegt noch eine alte `kino.json`**
+Kein Problem: der Server heißt seine Cache-Dateien inzwischen `kino-<datum>.json` und räumt die alte
+Datei beim nächsten Start selbst weg.
 
 **"Failed to launch browser" in den Logs**
 In der `docker-compose.yml` unter `homeboard:` zusätzlich eine Zeile ergänzen:

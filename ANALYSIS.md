@@ -5,7 +5,8 @@ Stand des untersuchten Codes: Commit `4d88287`.
 
 > **Status:** Alle elf Befunde aus Abschnitt 2 sind behoben. Die Befundtexte bleiben als
 > Dokumentation des ursprünglichen Zustands stehen; jeder trägt einen Hinweis auf die Umsetzung.
-> Damit umgesetzt sind zugleich die Vorschläge A1–A9 aus Abschnitt 3.
+> Aus Abschnitt 3 sind **A1–A12 sowie B2–B6** umgesetzt; offen ist allein **B1** (dritte Kachel).
+> Beim Schreiben der Smoke-Tests (A10) kam ein zwölfter Befund hinzu, siehe **M5**.
 
 ---
 
@@ -20,6 +21,8 @@ auf einem Unraid-Server.
 Drei Schichten mit genau einer Kopplung zwischen Server und Datenbeschaffung
 (`erstelleKinoprogramm()`):
 
+Untersuchter Stand (drei Schichten, eine Kopplung über `erstelleKinoprogramm()`):
+
 ```
 index.html    Präsentation — View-Umschaltung ohne Router, CSS+JS inline
    ↓ fetch
@@ -28,13 +31,26 @@ server.js     HTTP, Cache-Logik, statische Auslieferung
 lib/kino.js   Vier Kino-Scraper
 ```
 
+Heutiger Stand nach A12 und B3 — Präsentation aufgeteilt, Wetter nicht mehr am Server vorbei:
+
+```
+index.html / app.css / app.js   Präsentation, weiterhin ohne Build-Schritt
+   ↓ fetch /api/kino, /api/wetter
+server.js                       HTTP, Cache pro Datum, statische Allowlist
+   ↓ require
+lib/kino.js   lib/wetter.js     Datenbeschaffung
+   ↓ require
+lib/http.js   lib/datum.js      Zeitlimits, Kalendertage in Europe/Berlin
+```
+
 ### Einstiegspunkte
 
-| Datei | Zeile | Funktion |
-|---|---|---|
-| `server.js` | 98 | `server.listen()` |
-| `lib/kino.js` | 307 | `erstelleKinoprogramm()` |
-| `index.html` | 443 | Frontend-Bootstrap |
+| Datei | Funktion |
+|---|---|
+| `server.js` | `server.listen()` |
+| `lib/kino.js` | `erstelleKinoprogramm(datum)` |
+| `lib/wetter.js` | `holeWetter()` |
+| `app.js` | Frontend-Bootstrap |
 
 ### Tech-Stack
 
@@ -51,8 +67,10 @@ Parser-Bibliothek, drei der vier Kinos laufen ohne Browser.
 
 Zwei unabhängige Pfade — fällt einer aus, funktioniert der andere weiter:
 
-- **Kino:** Browser → `/api/kino` → RAM-Cache (45 min TTL) → bei Miss vier Scraper → `data/kino.json`
-- **Wetter:** Browser → **direkt** zu `api.open-meteo.com`, ohne Server-Beteiligung
+- **Kino:** Browser → `/api/kino?tag=…` → RAM-Cache pro Datum (45 min TTL) → bei Miss vier Scraper
+  → `data/kino-<datum>.json`
+- **Wetter:** Browser → `/api/wetter` → RAM-Cache (15 min TTL) → bei Miss `api.open-meteo.com`
+  (vor B3: Browser sprach Open-Meteo direkt an, ohne Server-Beteiligung)
 
 ### Externe Abhängigkeiten
 
@@ -117,6 +135,16 @@ Schlagen alle vier Kinos fehl, wird dieses Ergebnis in den RAM-Cache **und** nac
 **Behoben:** Ohne einen einzigen Film wird nicht auf Platte geschrieben und nur `FEHLER_TTL_MS`
 (3 min) gecacht; beim Start wird eine filmlose Datei nicht mehr als warmer Cache übernommen.
 *Nachgewiesen:* Cache-Datei blieb nach einem Totalausfall unverändert.
+
+**M5 — Abschnittsgrenze „Demnächst" nur als Literal gesucht** (`lib/kino.js`)
+Nachgereicht: beim Schreiben der Smoke-Tests (A10) aufgefallen, nicht in der ursprünglichen
+Durchsicht. Der Studiokino-Scraper schneidet den Tagesabschnitt bei `indexOf('Demnächst')` ab.
+Steht der Umlaut im Quelltext als Entity (`Demn&auml;chst`), greift die Grenze nicht, der Abschnitt
+reicht bis zum Dokumentende — und die Vorschaufilme aus „Demnächst" erscheinen ohne Spieltermin im
+heutigen Programm. Anders als M1 fällt das nicht auf: es entsteht kein Fehler, nur falsche Daten.
+*Reproduziert:* Fixture mit `Demn&auml;chst` liefert 2 statt 1 Film.
+**Behoben:** `ersterIndex()` prüft `Demnächst`, `Demn&auml;chst` und `Demn&#228;chst`. Beide
+Schreibweisen sind durch je einen Test abgedeckt.
 
 ### Gering
 
@@ -183,29 +211,62 @@ für den lokalen Start vorgehalten, kein Befund.
 | A7 | `data/kino.json` in `.gitignore`, aus Index nehmen | niedrig | mittel | G2 | **umgesetzt** |
 | A8 | Graceful Shutdown (`SIGTERM` → `server.close()`) | niedrig | gering | G6 | **umgesetzt** |
 | A9 | `npm ci` statt `npm install` im Compose-Command | niedrig | mittel | G7 | **umgesetzt** |
-| A10 | Smoke-Test-Skript (`node --test`) | mittel | hoch | Testlücke | offen |
+| A10 | Smoke-Test-Skript (`node --test`) | mittel | hoch | Testlücke, M5 | **umgesetzt** |
 | A11 | Scraper-Signaturen vereinheitlichen | mittel | gering | G4 | **umgesetzt** |
-| A12 | `index.html` aufteilen (nur bei weiterem Wachstum) | mittel | gering | — | offen |
+| A12 | `index.html` aufteilen | mittel | gering | — | **umgesetzt** |
 
 ### Funktionserweiterungen
 
-| # | Vorschlag | Aufwand | Nutzen |
-|---|---|---|---|
-| B1 | Dritte Kachel füllen (Müllabfuhr, MVB-Abfahrten, Kalender) — Platzhalter existiert bereits | mittel | hoch |
-| B2 | Auto-Refresh für den Wandtablet-Betrieb | niedrig | hoch |
-| B3 | Wetter über den Server proxen (Caching, Client-Unabhängigkeit) | niedrig | mittel |
-| B4 | Mehrtagesvorhersage (`forecast_days` 1 → 3–5) | niedrig | mittel |
-| B5 | Kino-Vorschau auf morgen (Datumsparameter) | mittel | mittel |
-| B6 | Cache-Alter im Frontend anzeigen | niedrig | mittel |
+| # | Vorschlag | Aufwand | Nutzen | Status |
+|---|---|---|---|---|
+| B1 | Dritte Kachel füllen (Müllabfuhr, MVB-Abfahrten, Kalender) — Platzhalter existiert bereits | mittel | hoch | offen |
+| B2 | Auto-Refresh für den Wandtablet-Betrieb | niedrig | hoch | **umgesetzt** |
+| B3 | Wetter über den Server proxen (Caching, Client-Unabhängigkeit) | niedrig | mittel | **umgesetzt** |
+| B4 | Mehrtagesvorhersage (`forecast_days` 1 → 3–5) | niedrig | mittel | **umgesetzt** |
+| B5 | Kino-Vorschau auf morgen (Datumsparameter) | mittel | mittel | **umgesetzt** |
+| B6 | Cache-Alter im Frontend anzeigen | niedrig | mittel | **umgesetzt** |
 
-**Offen geblieben:** A10 (Smoke-Tests) und A12 (`index.html` aufteilen) sowie sämtliche
-Erweiterungen B1–B6. Empfohlene Reihenfolge für den nächsten Schritt: A10 als Sicherheitsnetz,
-danach B2 und B1.
+### Anmerkungen zur Umsetzung
+
+- **A12:** aufgeteilt in `index.html` (Markup), `app.css` und `app.js`. Kein Build-Schritt, die
+  beiden neuen Dateien stehen in `OEFFENTLICHE_DATEIEN`. Das Theme-Bootstrap bleibt bewusst inline
+  im `<head>` — als externe Datei würde beim Laden kurz der falsche Farbmodus aufblitzen.
+- **B2:** kein eigener Timer je Ansicht, sondern ein 30-Sekunden-Tick, der prüft, ob die
+  *sichtbare* Ansicht veraltet ist. Erzwungen (`refresh=1`) wird dabei nie — über die Frische
+  entscheidet der Server-Cache. Derselbe Tick hält das Kopfdatum über Mitternacht hinweg aktuell
+  und verwirft dann den angezeigten Stand; ein Tablet, das wochenlang durchläuft, zeigte sonst
+  dauerhaft den Tag des letzten Reloads.
+- **B3:** Der Browser spricht Open-Meteo nicht mehr direkt an. Scheitert der Abruf, liefert der
+  Server den letzten brauchbaren Stand weiter statt eines Fehlers — die Kachel bleibt gefüllt, und
+  über die Altersangabe (B6) ist erkennbar, wie frisch sie ist.
+- **B4:** `forecast_days=5`. Die Stundenleiste wird serverseitig auf 24 Stunden **ab der laufenden
+  Stunde** beschnitten; ohne das hätte sie 120 Einträge, und die alte Markierung „jetzt" (Vergleich
+  nur der Stundenzahl) hätte an fünf Stellen zugleich gegriffen.
+- **B5:** `tag=heute|morgen` statt eines freien Datumsparameters — jeder beliebige Wert würde sonst
+  einen Scrape gegen vier Fremdseiten auslösen. Drei der vier Kinos liefern eine Vorschau; das
+  Studiokino veröffentlicht nur den laufenden Tag und meldet das über das neue Feld `hinweis`.
+  Damit hat ein Kino genau einen von drei Zuständen: Filme, Hinweis oder Fehler. Der Cache ist
+  jetzt pro Datum getrennt (`data/kino-<datum>.json`), veraltete Dateien räumt der Start weg.
+
+**Offen geblieben:** allein **B1** (dritte Kachel) — auf ausdrücklichen Wunsch zurückgestellt.
 
 ---
 
 ## 4. Testlage
 
-Es existiert **kein** Test-Framework: kein `test`-Script, keine Testdateien, keine CI-Konfiguration.
-`npm test` bricht mit `Missing script: "test"` ab. Manuelle Verifikation siehe Definition of Done
-in `CLAUDE.md`.
+`npm test` startet `node --test` mit vier Dateien unter `test/` (32 Tests, ~1,1 s). Kein
+Test-Framework als Dependency — Bordmittel reichen und passen zum dependency-armen Ansatz.
+
+| Datei | Deckt ab |
+|---|---|
+| `test/helfer.test.js` | `sichereUrl`, Entity-Dekodierung, Kürzung, Datumshelfer |
+| `test/kino.test.js` | Scraper gegen HTML-/JSON-Fixtures, Fehlerisolation, Parallelität, Zeitlimit |
+| `test/wetter.test.js` | Normalisierung, Stundenausschnitt, defekte Antworten |
+| `test/server.test.js` | Allowlist, `tag`-Validierung, Wetter-Cache, keine Persistenz bei Totalausfall |
+
+Die Tests laufen **ohne Netzzugriff**: `globalThis.fetch` wird ersetzt, der Server startet mit
+`PORT=0`. Moritzhof lässt sich so nicht stubben (Playwright statt `fetch`) und scheitert im Test —
+genau das prüft der Isolationstest mit. Eine CI-Konfiguration gibt es weiterhin nicht.
+
+Nicht durch Tests abgedeckt und weiterhin nur manuell prüfbar (siehe Definition of Done in
+`CLAUDE.md`): das tatsächliche Scraping gegen die echten Kinoseiten.
