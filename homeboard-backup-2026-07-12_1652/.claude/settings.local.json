@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.studiokino.com)",
+      "WebFetch(domain:www.cinemaxx.de)",
+      "WebFetch(domain:www.cinestar.de)",
+      "WebFetch(domain:www.moritzhof-magdeburg.de)"
+    ]
+  }
+}
